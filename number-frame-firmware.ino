@@ -1,19 +1,42 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClient.h>
 #include <WebSocketsClient_Generic.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include "Adafruit_LEDBackpack.h"
 #include "config.h"
 
-const char* websocket_host = "number-frame-server.noshado.ws";
+const char* server_host = "number-frame-server.noshado.ws";
 const int websocket_port = 80;
 
 Adafruit_7segment matrix = Adafruit_7segment();
 WebSocketsClient webSocket;
 
-void setup() {
-  Serial.begin(115200);
+void fetchCurrentQuestion() {
+  WiFiClient client;
+  HTTPClient http;
   
+  http.begin(client, "http://" + String(server_host) + "/get-current-question");
+  
+  if (http.GET() > 0) {
+    DynamicJsonDocument doc(1024);
+    if (deserializeJson(doc, http.getString()) == DeserializationError::Ok) {
+      if (doc["success"] == true && doc.containsKey("number")) {
+        int number = doc["number"];
+        if (number >= 0 && number <= 9999) {
+          matrix.clear();
+          matrix.print(number);
+          matrix.writeDisplay();
+        }
+      }
+    }
+  }
+  
+  http.end();
+}
+
+void setup() {
   Wire.begin(4, 5);
   matrix.begin(0x70);
   matrix.setBrightness(5);
@@ -26,8 +49,10 @@ void setup() {
     delay(500);
   }
   
+  fetchCurrentQuestion();
+  
   webSocket.onEvent(webSocketEvent);
-  webSocket.begin(websocket_host, websocket_port, "/");
+  webSocket.begin(server_host, websocket_port, "/");
   webSocket.setReconnectInterval(5000);
 }
 
