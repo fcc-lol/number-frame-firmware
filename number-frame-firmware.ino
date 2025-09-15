@@ -13,11 +13,37 @@ const int websocket_port = 80;
 Adafruit_7segment matrix = Adafruit_7segment();
 WebSocketsClient webSocket;
 
+unsigned long lastRandomRequest = 0;
+const unsigned long randomInterval = 60000;
+
 void fetchCurrentQuestion() {
   WiFiClient client;
   HTTPClient http;
   
   http.begin(client, "http://" + String(server_host) + "/get-current-question");
+  
+  if (http.GET() > 0) {
+    DynamicJsonDocument doc(1024);
+    if (deserializeJson(doc, http.getString()) == DeserializationError::Ok) {
+      if (doc["success"] == true && doc.containsKey("number")) {
+        int number = doc["number"];
+        if (number >= 0 && number <= 9999) {
+          matrix.clear();
+          matrix.print(number);
+          matrix.writeDisplay();
+        }
+      }
+    }
+  }
+  
+  http.end();
+}
+
+void processRandomQuestion() {
+  WiFiClient client;
+  HTTPClient http;
+  
+  http.begin(client, "http://" + String(server_host) + "/process-random-question");
   
   if (http.GET() > 0) {
     DynamicJsonDocument doc(1024);
@@ -58,6 +84,12 @@ void setup() {
 
 void loop() {
   webSocket.loop();
+  
+  if (millis() - lastRandomRequest >= randomInterval) {
+    processRandomQuestion();
+    lastRandomRequest = millis();
+  }
+  
   delay(10);
 }
 
