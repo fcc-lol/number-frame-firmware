@@ -16,9 +16,9 @@ void setup() {
   
   Wire.begin(4, 5);
   matrix.begin(0x70);
-  matrix.setBrightness(10);
+  matrix.setBrightness(5);
   matrix.clear();
-  matrix.print(0);
+  matrix.print(8888);
   matrix.writeDisplay();
   
   WiFi.begin(ssid, password);
@@ -36,15 +36,8 @@ void loop() {
   delay(10);
 }
 
-void webSocketEvent(const WStype_t& type, uint8_t * payload, const size_t& length) {
-  switch(type) {
-    case WStype_CONNECTED:
-      webSocket.sendTXT("Number frame connected");
-      break;
-    case WStype_TEXT:
-      handleMessage((char*)payload);
-      break;
-  }
+void webSocketEvent(const WStype_t& type, uint8_t * payload, const size_t&) {
+  if (type == WStype_TEXT) handleMessage((char*)payload);
 }
 
 void handleMessage(const char* message) {
